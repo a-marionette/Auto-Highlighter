@@ -146,13 +146,12 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
                     # Check if all toolFlags now exist for the key and if TRUE update highlight color
                     if all(x in keyTools for x in [self._callbacks.TOOL_EXTENDER,self._callbacks.TOOL_INTRUDER]) or all(x in keyTools for x in [self._callbacks.TOOL_SCANNER,self._callbacks.TOOL_INTRUDER]):
                         color = self.colors.get("Both Tools")
-                    # ELSE reinitialize key value to just current tool
                     else:
                         skipHighlight = True
                 # Create new key
                 else:
                     self.keys[key] = [toolFlag]
-            # REMOVE: Set highlight to none and remove key 
+            # REMOVE: Set highlight to None and remove key 
             else:
                 color = None
                 self.keys.pop(key,None)
