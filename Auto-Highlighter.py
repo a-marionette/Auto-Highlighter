@@ -59,7 +59,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
     def getTabCaption(self):
 
-        return "Auto-Higlighter"
+        return "Auto-Highlighter"
     
     def getUiComponent(self):
         
@@ -135,7 +135,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
             skipHighlight = False
 
             if mode:
-                # ADD: Figure out existing key values to determine higlight color and update key
+                # ADD: Figure out existing key values to determine highlight color and update key
                 if keyExist:
                     # Find what tool flags the key has
                     keyTools = self.keys.get(key)
@@ -152,12 +152,12 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
                 # Create new key
                 else:
                     self.keys[key] = [toolFlag]
-            # REMOVE: Set higlight to none and remove key 
+            # REMOVE: Set highlight to none and remove key 
             else:
                 color = None
                 self.keys.pop(key,None)
 
-            # Iterate through Proxy History to apply or clear higlight
+            # Iterate through Proxy History to apply or clear highlight
             if not skipHighlight:
                 for baseRequestResponse in history:
                     _, keyProxy = self.keyExists(baseRequestResponse)
