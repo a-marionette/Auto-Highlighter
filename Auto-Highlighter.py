@@ -115,14 +115,11 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         requestInfo = self._helpers.analyzeRequest(baseRequestResponse)
         url = requestInfo.getUrl().toString()
-        #url = self._helpers.bytesToString(url)
         url = self.cleanURL(url)
         parameters = requestInfo.getParameters()
         parameters = list(filter(lambda x: (x.getType() != x.PARAM_COOKIE), parameters))
         parameterNames = [x.getName().encode('utf-8').strip() for x in parameters]
-       # parameterNamesEncoded = [x.getName() for x in parameters]
         parameterNamesString = "".join(parameterNames)
-        #print(parameterNamesString)
         key = zlib.crc32(url + parameterNamesString)
  
         if key in self.keys:
