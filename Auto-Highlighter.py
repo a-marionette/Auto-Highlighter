@@ -112,15 +112,18 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         return panel
 
     def keyExists(self,baseRequestResponse):
-        
+
         requestInfo = self._helpers.analyzeRequest(baseRequestResponse)
-        url = requestInfo.getUrl()
+        url = requestInfo.getUrl().toString()
+        #url = self._helpers.bytesToString(url)
         url = self.cleanURL(url)
         parameters = requestInfo.getParameters()
         parameters = list(filter(lambda x: (x.getType() != x.PARAM_COOKIE), parameters))
-        parameterNames = [x.getName() for x in parameters]
+        parameterNames = [x.getName().encode('utf-8').strip() for x in parameters]
+       # parameterNamesEncoded = [x.getName() for x in parameters]
         parameterNamesString = "".join(parameterNames)
-        key = zlib.crc32(str(url) + parameterNamesString)
+        #print(parameterNamesString)
+        key = zlib.crc32(url + parameterNamesString)
  
         if key in self.keys:
             return True, key
@@ -185,7 +188,11 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
     def processHttpMessage(self,toolFlag,messageIsRequest,messageInfo):
 
+
+
         # If tool origin is Intruder,Scanner,or Extender -> Send to ProxyHistoryHighlight function for further processing
+
+        
 
         if not messageIsRequest:
             return
