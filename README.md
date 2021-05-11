@@ -10,7 +10,7 @@
 * Determines unique requested based off keyed parameters (Ignores cookies)
 	* Automatically normalizes URLs with route parameters such as IDs or GUIDs
 * Automated highlighting of unique requests from Scanner / Intruder throughout proxy history
-* Manual higlighting of unique request throughout proxy history
+* Manual highlighting of unique request throughout proxy history
 * Configure highlight colors
 	* Intruder
 	* Scanner
@@ -29,5 +29,5 @@
 	* doyensec 
 
 # About
-* a-marionette (Michael Maturi) Security Researcher
+* a-marionette _(Michael Maturi)_ Security Researcher
 
