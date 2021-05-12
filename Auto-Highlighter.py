@@ -114,6 +114,9 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
     def keyExists(self,baseRequestResponse):
 
         requestInfo = self._helpers.analyzeRequest(baseRequestResponse)
+        # Errors for Timed-Out requests in proxy history
+        if not requestInfo.getUrl():
+            return None, ""
         url = requestInfo.getUrl().toString()
         url = self.cleanURL(url)
         parameters = requestInfo.getParameters()
@@ -159,7 +162,10 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
             # Iterate through Proxy History to apply or clear highlight
             if not skipHighlight:
                 for baseRequestResponse in history:
-                    _, keyProxy = self.keyExists(baseRequestResponse)
+                    keyExistProxy, keyProxy = self.keyExists(baseRequestResponse)
+                    if not keyExistProxy:
+                        print("Hit error, no URL for request")
+                        continue
                     if key == keyProxy:
                         baseRequestResponse.setHighlight(color)
 
