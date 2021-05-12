@@ -164,7 +164,6 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
                 for baseRequestResponse in history:
                     keyExistProxy, keyProxy = self.keyExists(baseRequestResponse)
                     if not keyExistProxy:
-                        print("Hit error, no URL for request")
                         continue
                     if key == keyProxy:
                         baseRequestResponse.setHighlight(color)
