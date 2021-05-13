@@ -51,7 +51,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         self.toolMapping = {callbacks.TOOL_INTRUDER:"Intruder",callbacks.TOOL_SCANNER:"Scanner",callbacks.TOOL_EXTENDER:"Scanner",None:"Manual"}
 
-        self.tools = [callbacks.TOOL_INTRUDER,callbacks.TOOL_SCANNER,callbacks.TOOL_EXTENDER]
+        self.tools = [callbacks.TOOL_INTRUDER,callbacks.TOOL_SCANNER,callbacks.TOOL_EXTENDER,callbacks.TOOL_PROXY]
 
         self.keys = {}
         
@@ -132,41 +132,42 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
     def doHighlight(self,baseRequestResponse,key,keyExist,toolFlag,mode=True):
 
-            history = self._callbacks.getProxyHistory()
-            toolMap = self.toolMapping.get(toolFlag)
-            color = self.colors[toolMap]
-            skipHighlight = False
+            # Removes highlight if key exist
 
-            if mode:
-                # ADD: Figure out existing key values to determine highlight color and update key
-                if keyExist:
-                    # Find what tool flags the key has
-                    keyTools = self.keys.get(key)
-                    # If current toolFlag is not in the list, append it to the list
-                    if toolFlag not in keyTools: 
-                        self.keys[key].append(toolFlag)
-                        keyTools = self.keys.get(key)
-                    # Check if all toolFlags now exist for the key and if TRUE update highlight color
-                    if all(x in keyTools for x in [self._callbacks.TOOL_EXTENDER,self._callbacks.TOOL_INTRUDER]) or all(x in keyTools for x in [self._callbacks.TOOL_SCANNER,self._callbacks.TOOL_INTRUDER]):
-                        color = self.colors.get("Both Tools")
-                    else:
-                        skipHighlight = True
-                # Create new key
-                else:
-                    self.keys[key] = [toolFlag]
-            # REMOVE: Set highlight to None and remove key 
-            else:
-                color = None
-                self.keys.pop(key,None)
+            if keyExist:
+                if not mode:
+                    color = None
+                    self.keys.pop(key,None)
+                    baseRequestResponse.setHighlight(color)
+                    return
 
-            # Iterate through Proxy History to apply or clear highlight
-            if not skipHighlight:
-                for baseRequestResponse in history:
-                    keyExistProxy, keyProxy = self.keyExists(baseRequestResponse)
-                    if not keyExistProxy:
-                        continue
-                    if key == keyProxy:
-                        baseRequestResponse.setHighlight(color)
+                keyTools = self.keys.get(key)
+
+                # Append current tool to list if not exist AND not from proxy
+
+                if toolFlag not in keyTools and not toolFlag == self._callbacks.TOOL_PROXY:
+                    self.keys[key].append(toolFlag)
+
+                # Find the color based on the key value
+
+                if all(x in keyTools for x in [self._callbacks.TOOL_EXTENDER,self._callbacks.TOOL_INTRUDER]) or all(x in keyTools for x in [self._callbacks.TOOL_SCANNER,self._callbacks.TOOL_INTRUDER]):
+                    color = self.colors.get("Both Tools")
+                elif self._callbacks.TOOL_INTRUDER in keyTools:
+                    color = self.colors.get("Intruder")
+                elif any(x in [self._callbacks.TOOL_EXTENDER,self._callbacks.TOOL_SCANNER] for x in keyTools):
+                    color = self.colors.get("Scanner")
+                elif None in keyTools:
+                    color = self.colors.get("Manual")
+   
+            # Create new key if it doesnt exist AND not from proxy
+
+            if not keyExist and not toolFlag == self._callbacks.TOOL_PROXY:
+                self.keys[key] = [toolFlag]
+                toolMap = self.toolMapping.get(toolFlag)
+                color = self.colors.get(toolMap)
+              
+            if toolFlag == self._callbacks.TOOL_PROXY or toolFlag is None:
+                baseRequestResponse.setHighlight(color)
 
     def createMenuItems(self,invocation):
 
@@ -190,11 +191,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
     def processHttpMessage(self,toolFlag,messageIsRequest,messageInfo):
 
-
-
-        # If tool origin is Intruder,Scanner,or Extender -> Send to ProxyHistoryHighlight function for further processing
-
-        
+        # If tool origin is Intruder,Scanner,or Extender -> Send to ProxyHistoryHighlight function for further processing 
 
         if not messageIsRequest:
             return
