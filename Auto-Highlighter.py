@@ -167,21 +167,21 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
                     self.doProxyHighlight(key,color)
                 elif any(x in [self._callbacks.TOOL_EXTENDER,self._callbacks.TOOL_SCANNER] for x in keyTools):
                     color = self.colors.get("Scanner")
-                    self.doProxyHighlight(key,color)
-      
+                    self.doProxyHighlight(key,color)   
+                elif self._callbacks.TOOL_PROXY in keyTools:
+                    color = self.colors.get("Manual")
+                else:
+                    color = keyTools[0]
    
             # Create new key if it doesnt exist AND not from proxy
 
-            if not keyExist and not toolFlag == self._callbacks.TOOL_PROXY and not toolFlag is None:
+            if not keyExist and not toolFlag == self._callbacks.TOOL_PROXY:
                 self.keys[key] = [toolFlag]
                 toolMap = self.toolMapping.get(toolFlag)
 
                 color = self.colors.get(toolMap)
               
-            elif not keyExist and toolFlag == self._callbacks.TOOL_PROXY or toolFlag is None:
-                self.keys[key] = [toolFlag]
-                if color == None:
-                    color = self.colors.get("Manual")
+            elif keyExist and toolFlag == self._callbacks.TOOL_PROXY or toolFlag is None:
                 baseRequestResponse.setHighlight(color)
 
     def doProxyHighlight(self,key,color):
@@ -271,7 +271,10 @@ class HighlighterAddKeyedMenuItem(ActionListener):
         self.menuitem = JMenuItem(text)
         self.menuitem.setEnabled(True)
         self.menuitem.addActionListener(self)
-        self.action = lambda: self.extender.doHighlight(baseRequestResponse,key,keyExist,None,True)
+        self.baseRequestResponse = baseRequestResponse
+        self.key = key
+        self.keyExist = keyExist
+        #self.action = lambda: self.extender.doHighlight(baseRequestResponse,key,keyExist,None,True)
 
     def actionPerformed(self, e):
         """
@@ -280,7 +283,9 @@ class HighlighterAddKeyedMenuItem(ActionListener):
         :return:
         """
 
-        self.action()
+        self.extender.keys[self.key] = [self.extender._callbacks.TOOL_PROXY]
+        color = self.extender.colors.get("Manual")
+        self.baseRequestResponse.setHighlight(color)
 
 class HighlighterAddKeyedMenuItemColor(ActionListener):
     """
@@ -312,8 +317,8 @@ class HighlighterAddKeyedMenuItemColor(ActionListener):
         :return:
         """
 
-
-        self.extender.doHighlight(self.baseRequestResponse,self.key,self.keyExist,None,True,e.getSource().getText())
+        self.extender.keys[self.key] = [e.getSource().getText()]
+        self.baseRequestResponse.setHighlight(e.getSource().getText())
 
 
 class HighlighterRemoveKeyedMenuItem(ActionListener):
@@ -327,7 +332,10 @@ class HighlighterRemoveKeyedMenuItem(ActionListener):
         self.menuitem = JMenuItem(text)
         self.menuitem.setEnabled(True)
         self.menuitem.addActionListener(self)
-        self.action = lambda: self.extender.doHighlight(baseRequestResponse,key,keyExist,None,False)
+        self.baseRequestResponse = baseRequestResponse
+        self.key = key
+        self.keyExist = keyExist
+
 
     def actionPerformed(self, e):
         """
@@ -336,7 +344,7 @@ class HighlighterRemoveKeyedMenuItem(ActionListener):
         :return:
         """
 
-        self.action()
+        self.extender.doHighlight(self.baseRequestResponse,self.key,self.keyExist,None,False)
 
 class JComboDropDown(ActionListener):
     """
