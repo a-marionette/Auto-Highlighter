@@ -133,7 +133,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         else:
             return False, key
 
-    def doHighlight(self,baseRequestResponse,key,keyExist,toolFlag,mode=True):
+    def doHighlight(self,baseRequestResponse,key,keyExist,toolFlag,mode=True,color=None):
 
             # Removes highlight if key exist
 
@@ -168,19 +168,21 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
                 elif any(x in [self._callbacks.TOOL_EXTENDER,self._callbacks.TOOL_SCANNER] for x in keyTools):
                     color = self.colors.get("Scanner")
                     self.doProxyHighlight(key,color)
-                elif None in keyTools:
-                    color = self.colors.get("Manual")
+      
    
             # Create new key if it doesnt exist AND not from proxy
 
-            if not keyExist and not toolFlag == self._callbacks.TOOL_PROXY:
+            if not keyExist and not toolFlag == self._callbacks.TOOL_PROXY and not toolFlag is None:
                 self.keys[key] = [toolFlag]
                 toolMap = self.toolMapping.get(toolFlag)
+
                 color = self.colors.get(toolMap)
               
-            if toolFlag == self._callbacks.TOOL_PROXY or toolFlag is None:
+            elif not keyExist and toolFlag == self._callbacks.TOOL_PROXY or toolFlag is None:
+                self.keys[key] = [toolFlag]
+                if color == None:
+                    color = self.colors.get("Manual")
                 baseRequestResponse.setHighlight(color)
-
 
     def doProxyHighlight(self,key,color):
         # On context menu invocation, get key of request
@@ -203,9 +205,13 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
             self.contextMenuKeys[key] = baseRequestResponse
 
             if keyExist:
-                parentMenu.add(HighlighterRemoveKeyedMenuItem(lambda: self.doHighlight(baseRequestResponse,key,keyExist,None,False)).menuitem)
+                parentMenu.add(HighlighterRemoveKeyedMenuItem(self,baseRequestResponse,key,keyExist).menuitem)
+                
+
             else:
-                parentMenu.add(HighlighterAddKeyedMenuItem(lambda: self.doHighlight(baseRequestResponse,key,keyExist,None,True)).menuitem)  
+                parentMenu.add(HighlighterAddKeyedMenuItem(self,baseRequestResponse,key,keyExist).menuitem)
+                colorMenu = HighlighterAddKeyedMenuItemColor(self,baseRequestResponse,key,keyExist).menuitem
+                parentMenu.add(colorMenu)
             items.append(parentMenu)
             return items
         else:
@@ -259,12 +265,13 @@ class HighlighterAddKeyedMenuItem(ActionListener):
     HighlighterAddKeyedMenuItem creates a new submenu.
     """
 
-    def __init__(self, action, text="Add Highlight From Keyed Parameters"):
+    def __init__(self,extender,baseRequestResponse,key,keyExist,text="Add Highlight From Keyed Parameters"):
 
+        self.extender = extender
         self.menuitem = JMenuItem(text)
         self.menuitem.setEnabled(True)
         self.menuitem.addActionListener(self)
-        self.action = action
+        self.action = lambda: self.extender.doHighlight(baseRequestResponse,key,keyExist,None,True)
 
     def actionPerformed(self, e):
         """
@@ -274,19 +281,53 @@ class HighlighterAddKeyedMenuItem(ActionListener):
         """
 
         self.action()
-   
+
+class HighlighterAddKeyedMenuItemColor(ActionListener):
+    """
+    HighlighterAddKeyedMenuItem creates a new submenu.
+    """
+
+    def __init__(self,extender,baseRequestResponse,key,keyExist,text="Add Highlight From Keyed Parameters (Color)"):
+
+        colors = []
+
+        self.extender = extender
+        self.menuitem = JMenu(text)
+        self.baseRequestResponse = baseRequestResponse
+        self.key = key
+        self.keyExist = keyExist
+        for color in self.extender.combocolors:
+            self.submenu =  JMenuItem(color)
+            self.submenu.setEnabled(True)
+            self.submenu.addActionListener(self)
+            self.menuitem.add(self.submenu)
+        self.menuitem.setEnabled(True)
+
+        #self.action = lambda: self.extender.doHighlight(self.baseRequestResponse,self.key,self.keyExist,None,True,self.submenu.text)
+
+    def actionPerformed(self, e):
+        """
+        Override the ActionListener method. Usually setup in combination with a menuitem click.
+        :param e: unused
+        :return:
+        """
+
+
+        self.extender.doHighlight(self.baseRequestResponse,self.key,self.keyExist,None,True,e.getSource().getText())
+
 
 class HighlighterRemoveKeyedMenuItem(ActionListener):
     """
     HighlighterRemoveKeyedMenuItem creates a new sub menu.
     """
 
-    def __init__(self, action, text="Remove Highlight From Keyed Parameters"):
+    def __init__(self,extender,baseRequestResponse,key,keyExist,text="Remove Highlight From Keyed Parameters"):
 
+        self.extender = extender
         self.menuitem = JMenuItem(text)
         self.menuitem.setEnabled(True)
         self.menuitem.addActionListener(self)
-        self.action = action
+        self.action = lambda: self.extender.doHighlight(baseRequestResponse,key,keyExist,None,False)
 
     def actionPerformed(self, e):
         """
