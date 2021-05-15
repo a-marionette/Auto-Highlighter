@@ -9,6 +9,7 @@ from javax.swing import JComboBox
 from javax.swing import Box
 from javax.swing import JMenu
 from javax.swing import JMenuItem
+from collections import OrderedDict
 import sys
 import re
 import zlib
@@ -52,6 +53,8 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         self.toolMapping = {callbacks.TOOL_INTRUDER:"Intruder",callbacks.TOOL_SCANNER:"Scanner",callbacks.TOOL_EXTENDER:"Scanner",None:"Manual"}
 
         self.tools = [callbacks.TOOL_INTRUDER,callbacks.TOOL_SCANNER,callbacks.TOOL_EXTENDER,callbacks.TOOL_PROXY]
+
+        self.contextMenuKeys = FixSizeOrderedDict()
 
         self.keys = {}
         
@@ -137,8 +140,14 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
             if keyExist:
                 if not mode:
                     color = None
+                    history = self._callbacks.getProxyHistory()
+                    for baseRequestResponse in history:
+                        keyExistProxy, keyProxy = self.keyExists(baseRequestResponse)
+                        if not keyExistProxy:
+                            continue
+                        if key == keyProxy:
+                            baseRequestResponse.setHighlight(color)
                     self.keys.pop(key,None)
-                    baseRequestResponse.setHighlight(color)
                     return
 
                 keyTools = self.keys.get(key)
@@ -152,10 +161,13 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
                 if all(x in keyTools for x in [self._callbacks.TOOL_EXTENDER,self._callbacks.TOOL_INTRUDER]) or all(x in keyTools for x in [self._callbacks.TOOL_SCANNER,self._callbacks.TOOL_INTRUDER]):
                     color = self.colors.get("Both Tools")
+                    self.doProxyHighlight(key,color)
                 elif self._callbacks.TOOL_INTRUDER in keyTools:
                     color = self.colors.get("Intruder")
+                    self.doProxyHighlight(key,color)
                 elif any(x in [self._callbacks.TOOL_EXTENDER,self._callbacks.TOOL_SCANNER] for x in keyTools):
                     color = self.colors.get("Scanner")
+                    self.doProxyHighlight(key,color)
                 elif None in keyTools:
                     color = self.colors.get("Manual")
    
@@ -169,6 +181,15 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
             if toolFlag == self._callbacks.TOOL_PROXY or toolFlag is None:
                 baseRequestResponse.setHighlight(color)
 
+
+    def doProxyHighlight(self,key,color):
+        # On context menu invocation, get key of request
+            # Saved to class variable with list of BaseHTTPRequestResponse (Remove last entry in list if exceeds 50)
+                # If key exists and this key is then seen in a request sent to Scanner/Intruder/Both Tools, highlight this request
+        if key in self.contextMenuKeys:
+            baseRequestResponse = self.contextMenuKeys.get(key)
+            baseRequestResponse.setHighlight(color)
+        
     def createMenuItems(self,invocation):
 
         items = []
@@ -177,9 +198,10 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         if invocation.getInvocationContext() in contexts:
             baseRequestResponse = invocation.getSelectedMessages()[0]
-            self.keyExists(baseRequestResponse)
             parentMenu = HighlighterParentMenu().menu
             keyExist, key = self.keyExists(baseRequestResponse)
+            self.contextMenuKeys[key] = baseRequestResponse
+
             if keyExist:
                 parentMenu.add(HighlighterRemoveKeyedMenuItem(lambda: self.doHighlight(baseRequestResponse,key,keyExist,None,False)).menuitem)
             else:
@@ -307,3 +329,10 @@ class JComboDropDown(ActionListener):
         selected = self.combobox.getSelectedItem()
         self.extender._callbacks.saveExtensionSetting(self.tool,selected)
         self.extender.colors[self.tool] = selected
+
+class FixSizeOrderedDict(OrderedDict):
+
+    def __setitem__(self, key, value):
+        OrderedDict.__setitem__(self, key, value)
+        if len(self) > 50:
+            self.popitem(False)
