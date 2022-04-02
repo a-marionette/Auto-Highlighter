@@ -84,7 +84,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         callbacks.addSuiteTab(self)
 
         print("Extension loaded")
-        print("By Michael Maturi @ Mandiant")
+        print("By Michael Maturi (amarionette) @ Mandiant")
 
         if self._callbacks.loadExtensionSetting("keys"):
             self.keys = ast.literal_eval(self._callbacks.loadExtensionSetting("keys"))
