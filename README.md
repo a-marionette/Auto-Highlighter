@@ -3,7 +3,7 @@
 ### What is it?
 
 * Auto-Highlighter is a Burp Extension that helps you track your progress on an assessment
-* It processes every HTTP request sent by Burp Suite and highlights previously higlighted requests
+* It processes every HTTP request sent by or proxied via Burp Suite and highlights previously higlighted requests
 
 ### How to use it?
 * Two modes of operation
@@ -18,6 +18,9 @@
 * Manual highlighting of unique request throughout proxy history
 * Configure highlight colors
 	* **Note:** Scanner and intruder options in the UI are non-functional artifacts and will be introduced in a future release. Ignore for now.
+
+### Note
+* The extension will not work if your application generates dynamic parameter names
 
 # About
 * a-marionette _(Michael Maturi)_ Security Researcher
