@@ -10,6 +10,7 @@
 	* Default higlight mode - Select in Burp Tab
 	* Explicit highlight mode - Select a color from the apporpriate dropdown menu
 * Use the context menu to invoke either mode
+* Ensure Burp Suite loaded exceptions_fix.py (included, by ) in a Modules directory you define (Project Options)
 
 ### Features
 
@@ -20,7 +21,13 @@
 	* **Note:** Scanner and intruder options in the UI are non-functional artifacts and will be introduced in a future release. Ignore for now.
 
 ### Note
+
 * The extension will not work if your application generates dynamic parameter names
 
-# About
-* a-marionette _(Michael Maturi)_ Security Researcher
+### About
+
+* amarionette _(Michael Maturi)_ Security Researcher
+
+### Thanks to
+
+https://github.com/securityMB for exceptions_fix.py
