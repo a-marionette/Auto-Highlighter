@@ -7,8 +7,8 @@
 
 ### How to use it?
 * Two modes of operation
-	* Default higlight mode - Select in Burp Tab
-	* Explicit highlight mode - Select a color from the apporpriate dropdown menu
+	* **Default higlight mode** - Select in Burp Tab _(Configure in extension settings tab)_
+	* **Explicit highlight mode** - Select a color from the dropdown menu
 * Use the context menu to invoke either mode
 * Ensure Burp Suite loaded exceptions_fix.py (included, by ) in a Modules directory you define (Project Options)
 
