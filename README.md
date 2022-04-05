@@ -4,13 +4,16 @@
 
 * Auto-Highlighter is a Burp Extension that helps you track your progress on an assessment
 * It processes every HTTP request sent by or proxied via Burp Suite and highlights previously higlighted requests
+* Unique requests are determine using the HTTP method, the URI, and request parameters (Excluding headers)
 
 ### How to use it?
-* Two modes of operation
+* Two modes of operation (Available in context menus after right-clicking a request in Proxy History)
 	* **Default higlight mode** - Select in Burp Tab _(Configure in extension settings tab)_
 	* **Explicit highlight mode** - Select a color from the dropdown menu
-* Use the context menu to invoke either mode
+* Ensure Burp Suite is configured to use Jython
 * Ensure Burp Suite loaded exceptions_fix.py (included, by ) in a Modules directory you define (Project Options)
+
+![](example.gif)
 
 ### Features
 
