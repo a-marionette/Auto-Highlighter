@@ -7,11 +7,11 @@
 * Unique requests are determine using the HTTP method, the URI, and request parameters (Excluding headers)
 
 ### How to use it?
-* Five context menu options (Available in context menus after right-clicking a request in Proxy History)
-	* **Triaged higlight mode** - Select in Burp Tab _(Configure in extension settings tab)_
-	* **Interesting higlight mode** - Select in Burp Tab _(Configure in extension settings tab)_
-	* **Finding higlight mode** - Select in Burp Tab _(Configure in extension settings tab)_
-	* **Ignore higlight mode** - Select in Burp Tab _(Configure in extension settings tab)_
+* Five context menu options (Available in context menus after right-clicking a request in Proxy History). All options except "Explicit" mode are configured in the Extension tab!
+	* **Triaged higlight mode** - Select in Extension Tab _(Configure in extension settings tab)_
+	* **Interesting higlight mode** - Select in Extension Tab _(Configure in extension settings tab)_
+	* **Finding higlight mode** - Select in Extension Tab _(Configure in extension settings tab)_
+	* **Ignore higlight mode** - Select in Extension Tab _(Configure in extension settings tab)_
 	* **Explicit highlight mode** - Select a color from the dropdown menu
 * Ensure Burp Suite is configured to use Jython
 * Ensure Burp Suite loaded exceptions_fix.py (included, by ) in a Modules directory you define (Project Options)
