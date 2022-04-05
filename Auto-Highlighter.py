@@ -56,24 +56,11 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         ]
 
         self.colors = {
-            "Scanner": "red",
-            "Intruder": "blue",
-            "Manual": "cyan",
-            "Both Tools": "green",
+            "Triaged": "red",
+            "Interesting": "blue",
+            "Finding": "cyan",
+            "Ignore": "gray",
         }
-
-        self.automatedTools = {
-            callbacks.TOOL_INTRUDER: "Intruder",
-            callbacks.TOOL_SCANNER: "Scanner",
-            callbacks.TOOL_EXTENDER: "Scanner",
-        }
-
-        self.tools = [
-            callbacks.TOOL_INTRUDER,
-            callbacks.TOOL_SCANNER,
-            callbacks.TOOL_EXTENDER,
-            callbacks.TOOL_PROXY,
-        ]
 
         self.proxyLookBackLimit = 25000
 
@@ -111,15 +98,15 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         # Create main UI elements
 
         jlabel = JLabel("<html><h1>Auto-Highlighter Settings</h1><br><br></html>")
-        jlabel1 = JLabel("<html><p>Scanner Highlight Color</html>")
-        jlabel2 = JLabel("<html><p>Intruder Highlight Color</html>")
-        jlabel3 = JLabel("<html><p>Manual Highlight Color</html>")
-        jlabel4 = JLabel("<html><p>Both Tools Highlight Color</html>")
+        jlabel1 = JLabel("<html><p>Triaged Highlight Color</html>")
+        jlabel2 = JLabel("<html><p>Interesting Highlight Color</html>")
+        jlabel3 = JLabel("<html><p>Finding Highlight Color</html>")
+        jlabel4 = JLabel("<html><p>Ignore Highlight Color</html>")
 
-        combo = JComboDropDown("Scanner", self).combobox
-        combo2 = JComboDropDown("Intruder", self).combobox
-        combo3 = JComboDropDown("Manual", self).combobox
-        combo4 = JComboDropDown("Both Tools", self).combobox
+        combo = JComboDropDown("Triaged", self).combobox
+        combo2 = JComboDropDown("Interesting", self).combobox
+        combo3 = JComboDropDown("Finding", self).combobox
+        combo4 = JComboDropDown("Ignore", self).combobox
 
         # Add vertical box to panel
 
@@ -188,25 +175,20 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         self.keys.pop(key, None)
         return
 
-    def doHighlight(self, baseRequestResponse, key, keyExist, toolFlag):
+    def doHighlight(self, baseRequestResponse, key, keyExist):
 
         color = None
      
         if keyExist:
             keyValues = self.keys.get(key)
-            if "Manual" in keyValues:
-                color = self.colors.get("Manual")
-                skip = True
-            elif "Explicit" in keyValues:
+            for key in self.colors:
+                if key in keyValues:
+                    color = self.colors.get(key)
+                    skip = True
+            if "Explicit" in keyValues:
                 skip = True
                 color = self.keys.get(key)[1]
 
-        if toolFlag in self.automatedTools and not skip:
-            # PLACEHOLDER FOR SUPPORTING HIGHLIGHTING FOR INTRUDER/SCANNER/EXTENDER
-            if keyExist:
-                self.keys[key].append(toolFlag)
-            else:
-                self.keys[key] = [toolFlag]
         if color:
             baseRequestResponse.setHighlight(color)
             self.doProxyHighlight(key, color)
@@ -238,7 +220,10 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
             if keyExist:
                 parentMenu.add(HighlighterRemoveKeyedMenuItem(self, baseRequestResponse, key).menuitem)
             else:
-                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist).menuitem)
+                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist,"Triaged").menuitem)
+                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist,"Interesting").menuitem)
+                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist,"Finding").menuitem)
+                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist,"Ignore").menuitem)
                 colorMenu = HighlighterAddKeyedMenuItemColor(self, baseRequestResponse, key, keyExist).menuitem
                 parentMenu.add(colorMenu)
             items.append(parentMenu)
@@ -251,14 +236,14 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         if not messageIsRequest:
             return
 
-        # If tool origin is Intruder,Scanner,or Extender then proceed to highlight
+        # If tool origin is not proxy, ignore
 
-        if toolFlag not in self.tools:
+        if toolFlag != self._callbacks.TOOL_PROXY:
             return
         
         keyExist, key = self.keyExists(messageInfo)
 
-        self.doHighlight(messageInfo, key, keyExist, toolFlag)
+        self.doHighlight(messageInfo, key, keyExist)
 
     def cleanURL(self, url):
 
@@ -309,16 +294,18 @@ class HighlighterAddKeyedMenuItem(ActionListener):
         baseRequestResponse,
         key,
         keyExist,
+        mode,
         text="Add Highlight From Keyed Parameters",
     ):
 
         self.extender = extender
-        self.menuitem = JMenuItem(text)
+        self.menuitem = JMenuItem("{0} ({1})".format(text,mode))
         self.menuitem.setEnabled(True)
         self.menuitem.addActionListener(self)
         self.baseRequestResponse = baseRequestResponse
         self.key = key
         self.keyExist = keyExist
+        self.mode = mode
 
     def actionPerformed(self, e):
         """
@@ -327,8 +314,8 @@ class HighlighterAddKeyedMenuItem(ActionListener):
         :return:
         """
 
-        self.extender.keys[self.key] = ["Manual"]
-        color = self.extender.colors.get("Manual")
+        self.extender.keys[self.key] = [self.mode]
+        color = self.extender.colors.get(self.mode)
         self.baseRequestResponse.setHighlight(color)
 
         # Higlight items 10000 items back
@@ -426,21 +413,21 @@ class JComboDropDown(ActionListener):
     JComboDropDown creates a new dropdown.
     """
 
-    def __init__(self, tool, extender):
+    def __init__(self, mode, extender):
 
         self.extender = extender
         self.combobox = JComboBox(self.extender.combocolors)
         self.combobox.addActionListener(self)
-        self.tool = tool
+        self.mode = mode
 
         # Create combox box color based on saved value or default
 
-        setting = self.extender._callbacks.loadExtensionSetting(self.tool)
+        setting = self.extender._callbacks.loadExtensionSetting(self.mode)
         if setting:
             self.combobox.setSelectedItem(setting)
-            self.extender.colors[self.tool] = setting
+            self.extender.colors[self.mode] = setting
         else:
-            self.combobox.setSelectedItem(self.extender.colors.get(self.tool))
+            self.combobox.setSelectedItem(self.extender.colors.get(self.mode))
 
     def actionPerformed(self, e):
         """
@@ -451,8 +438,8 @@ class JComboDropDown(ActionListener):
         """
 
         selected = self.combobox.getSelectedItem()
-        self.extender._callbacks.saveExtensionSetting(self.tool, selected)
-        self.extender.colors[self.tool] = selected
+        self.extender._callbacks.saveExtensionSetting(self.mode, selected)
+        self.extender.colors[self.mode] = selected
 
 class FixSizeOrderedDict(OrderedDict):
     def __setitem__(self, key, value):
