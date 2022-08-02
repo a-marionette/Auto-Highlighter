@@ -15,8 +15,11 @@ import re
 import zlib
 import ast
 
-# Burp looks for a class called BurpExtender to instantiate (with no constructor parameters) and then calls registerExtenderCallbacks() on this object passing in a "callbacks" object.
+# TODO
+    # Setting for keying off URL and verb only
+    # Setting for normalizing parameter names by removing digits (Ctl01, etc.)
 
+# Burp looks for a class called BurpExtender to instantiate (with no constructor parameters) and then calls registerExtenderCallbacks() on this object passing in a "callbacks" object.
 class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
     # Implement IBurpExtender
@@ -97,11 +100,11 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         # Create main UI elements
 
-        jlabel = JLabel("<html><h1>Auto-Highlighter Settings</h1><br><br></html>")
-        jlabel1 = JLabel("<html><p>Triaged Highlight Color</html>")
-        jlabel2 = JLabel("<html><p>Interesting Highlight Color</html>")
-        jlabel3 = JLabel("<html><p>Finding Highlight Color</html>")
-        jlabel4 = JLabel("<html><p>Ignore Highlight Color</html>")
+        jlabel = JLabel("Auto-Highlighter Settings")
+        jlabel1 = JLabel("Triaged Highlight Color")
+        jlabel2 = JLabel("Interesting Highlight Color")
+        jlabel3 = JLabel("Finding Highlight Color")
+        jlabel4 = JLabel("Ignore Highlight Color")
 
         combo = JComboDropDown("Triaged", self).combobox
         combo2 = JComboDropDown("Interesting", self).combobox
@@ -132,14 +135,20 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         return panel
 
-    def keyExists(self, baseRequestResponse):
+    def keyExists(self,key):
+        result = False
+        if key in self.keys:
+            result = True
+        return result
+
+    def calculateKey(self, baseRequestResponse):
 
         requestInfo = self._helpers.analyzeRequest(baseRequestResponse)
         
         # Handle timed-out requests which will throw an error
 
         if not requestInfo.getUrl():
-            return None, ""
+            return None
 
         # Get URL and clean it
 
@@ -150,48 +159,39 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         parameters = requestInfo.getParameters()
         parameters = list(filter(lambda x: (x.getType() != x.PARAM_COOKIE), parameters))
-        parameterNames = [x.getName().encode("utf-8").strip() for x in parameters]
+        parameterNames = [x.getName().encode("utf-8").strip().lower() for x in parameters]
         parameterNamesString = "".join(parameterNames)
 
         # Create a unique identifier using CRC32
 
         key = zlib.crc32(url + parameterNamesString)
-
-        # Check if the key exists in our keystore
-   
-        if key in self.keys:
-            return True, key
-        else:
-            return False, key
+        return key
 
     def removeHiglight(self,key):
         history = self._callbacks.getProxyHistory()
-        for baseRequestResponse in history[:10000]:
-            keyExistProxy, keyProxy = self.keyExists(baseRequestResponse)
-            if not keyExistProxy:
-                continue
-            if key == keyProxy:
+        for baseRequestResponse in history[self.extender.proxyLookBackLimit:]:
+            proxyHistoryItemKey = self.calculateKey(baseRequestResponse)
+            if key == proxyHistoryItemKey:
                 baseRequestResponse.setHighlight(None)
         self.keys.pop(key, None)
         return
 
-    def doHighlight(self, baseRequestResponse, key, keyExist):
+    def doHighlight(self, baseRequestResponse, key):
 
         color = None
      
-        if keyExist:
-            keyValues = self.keys.get(key)
-            for key in self.colors:
-                if key in keyValues:
-                    color = self.colors.get(key)
-                    skip = True
-            if "Explicit" in keyValues:
-                skip = True
-                color = self.keys.get(key)[1]
+        # Check all stored keys in 'keys' dictionary (Tag,CRC32Key)
+        keyValue = self.keys.get(key)[0]
 
-        if color:
-            baseRequestResponse.setHighlight(color)
-            self.doProxyHighlight(key, color)
+        # Look up tag color in colors dictionary, and x-lookup against key's tag to determine color
+        for tagKey in self.colors:
+            if tagKey == keyValue:
+                color = self.colors.get(tagKey)
+                break
+        if "Explicit" in keyValue:
+            color = self.keys.get(key)[1]
+
+        baseRequestResponse.setHighlight(color)
     
     def doProxyHighlight(self, key, color):
         if key in self.contextMenuKeys:
@@ -214,17 +214,18 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
         if invocation.getInvocationContext() in contexts:
             baseRequestResponse = invocation.getSelectedMessages()[0]
             parentMenu = HighlighterParentMenu().menu
-            keyExist, key = self.keyExists(baseRequestResponse)
+            key = self.calculateKey(baseRequestResponse)
+            keyExist = self.keyExists(key)
             self.contextMenuKeys[key] = baseRequestResponse
 
             if keyExist:
                 parentMenu.add(HighlighterRemoveKeyedMenuItem(self, baseRequestResponse, key).menuitem)
             else:
-                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist,"Triaged").menuitem)
-                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist,"Interesting").menuitem)
-                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist,"Finding").menuitem)
-                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, keyExist,"Ignore").menuitem)
-                colorMenu = HighlighterAddKeyedMenuItemColor(self, baseRequestResponse, key, keyExist).menuitem
+                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, "Triaged").menuitem)
+                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, "Interesting").menuitem)
+                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, "Finding").menuitem)
+                parentMenu.add(HighlighterAddKeyedMenuItem(self, baseRequestResponse, key, "Ignore").menuitem)
+                colorMenu = HighlighterAddKeyedMenuItemColor(self, baseRequestResponse, key).menuitem
                 parentMenu.add(colorMenu)
             items.append(parentMenu)
             return items
@@ -240,10 +241,13 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         if toolFlag != self._callbacks.TOOL_PROXY:
             return
-        
-        keyExist, key = self.keyExists(messageInfo)
 
-        self.doHighlight(messageInfo, key, keyExist)
+        # Check if a key exists for this item
+        key = self.calculateKey(messageInfo)
+        keyExist = self.keyExists(key)
+  
+        if keyExist:
+            self.doHighlight(messageInfo, key)
 
     def cleanURL(self, url):
 
@@ -293,19 +297,17 @@ class HighlighterAddKeyedMenuItem(ActionListener):
         extender,
         baseRequestResponse,
         key,
-        keyExist,
-        mode,
+        tag,
         text="Add Highlight From Keyed Parameters",
     ):
 
         self.extender = extender
-        self.menuitem = JMenuItem("{0} ({1})".format(text,mode))
+        self.menuitem = JMenuItem("{0} ({1})".format(text,tag))
         self.menuitem.setEnabled(True)
         self.menuitem.addActionListener(self)
         self.baseRequestResponse = baseRequestResponse
         self.key = key
-        self.keyExist = keyExist
-        self.mode = mode
+        self.tag = tag
 
     def actionPerformed(self, e):
         """
@@ -314,20 +316,16 @@ class HighlighterAddKeyedMenuItem(ActionListener):
         :return:
         """
 
-        self.extender.keys[self.key] = [self.mode]
-        color = self.extender.colors.get(self.mode)
+        self.extender.keys[self.key] = [self.tag]
+        color = self.extender.colors.get(self.tag)
         self.baseRequestResponse.setHighlight(color)
 
-        # Higlight items 10000 items back
-
         history = self.extender._callbacks.getProxyHistory()
-        for baseRequestResponse in history[:self.extender.proxyLookBackLimit]:
-            keyExistProxy, keyProxy = self.extender.keyExists(baseRequestResponse)
-            if not keyExistProxy:
-                continue
-            if self.key == keyProxy:
+        for baseRequestResponse in history[self.extender.proxyLookBackLimit:]:
+            keyProxyRequest = self.extender.calculateKey(baseRequestResponse)
+            if self.key == keyProxyRequest:
                 baseRequestResponse.setHighlight(color)
-
+     
         self.extender._callbacks.saveExtensionSetting("keys", str(self.extender.keys))
         
 class HighlighterAddKeyedMenuItemColor(ActionListener):
@@ -340,7 +338,6 @@ class HighlighterAddKeyedMenuItemColor(ActionListener):
         extender,
         baseRequestResponse,
         key,
-        keyExist,
         text="Add Highlight From Keyed Parameters (Color)",
     ):
 
@@ -348,7 +345,6 @@ class HighlighterAddKeyedMenuItemColor(ActionListener):
         self.menuitem = JMenu(text)
         self.baseRequestResponse = baseRequestResponse
         self.key = key
-        self.keyExist = keyExist
         for color in self.extender.combocolors:
             self.submenu = JMenuItem(color)
             self.submenu.setEnabled(True)
@@ -362,18 +358,15 @@ class HighlighterAddKeyedMenuItemColor(ActionListener):
         :param e: unused
         :return:
         """
+
         color = e.getSource().getText()
         self.extender.keys[self.key] = ["Explicit",color]
         self.baseRequestResponse.setHighlight(color)
 
-        # Higlight items 10000 items back
-
         history = self.extender._callbacks.getProxyHistory()
-        for baseRequestResponse in history[:self.extender.proxyLookBackLimit]:
-            keyExistProxy, keyProxy = self.extender.keyExists(baseRequestResponse)
-            if not keyExistProxy:
-                continue
-            if self.key == keyProxy:
+        for baseRequestResponse in history[self.extender.proxyLookBackLimit:]:
+            keyProxyRequest = self.extender.calculateKey(baseRequestResponse)
+            if self.key == keyProxyRequest:
                 baseRequestResponse.setHighlight(color)
 
         self.extender._callbacks.saveExtensionSetting("keys", str(self.extender.keys))
@@ -413,21 +406,21 @@ class JComboDropDown(ActionListener):
     JComboDropDown creates a new dropdown.
     """
 
-    def __init__(self, mode, extender):
+    def __init__(self, tag, extender):
 
         self.extender = extender
         self.combobox = JComboBox(self.extender.combocolors)
         self.combobox.addActionListener(self)
-        self.mode = mode
+        self.tag = tag
 
         # Create combox box color based on saved value or default
 
-        setting = self.extender._callbacks.loadExtensionSetting(self.mode)
+        setting = self.extender._callbacks.loadExtensionSetting(self.tag)
         if setting:
             self.combobox.setSelectedItem(setting)
-            self.extender.colors[self.mode] = setting
+            self.extender.colors[self.tag] = setting
         else:
-            self.combobox.setSelectedItem(self.extender.colors.get(self.mode))
+            self.combobox.setSelectedItem(self.extender.colors.get(self.tag))
 
     def actionPerformed(self, e):
         """
@@ -438,8 +431,8 @@ class JComboDropDown(ActionListener):
         """
 
         selected = self.combobox.getSelectedItem()
-        self.extender._callbacks.saveExtensionSetting(self.mode, selected)
-        self.extender.colors[self.mode] = selected
+        self.extender._callbacks.saveExtensionSetting(self.tag, selected)
+        self.extender.colors[self.tag] = selected
 
 class FixSizeOrderedDict(OrderedDict):
     def __setitem__(self, key, value):
