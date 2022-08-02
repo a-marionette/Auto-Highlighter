@@ -151,7 +151,7 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
             return None
 
         # Get URL and clean it
-
+        method = requestInfo.getMethod()
         url = requestInfo.getUrl().toString()
         url = self.cleanURL(url)
 
@@ -164,12 +164,12 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         # Create a unique identifier using CRC32
 
-        key = zlib.crc32(url + parameterNamesString)
+        key = zlib.crc32(method + url + parameterNamesString)
         return key
 
     def removeHiglight(self,key):
         history = self._callbacks.getProxyHistory()
-        for baseRequestResponse in history[self.extender.proxyLookBackLimit:]:
+        for baseRequestResponse in history[self.proxyLookBackLimit:]:
             proxyHistoryItemKey = self.calculateKey(baseRequestResponse)
             if key == proxyHistoryItemKey:
                 baseRequestResponse.setHighlight(None)
@@ -193,11 +193,6 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
 
         baseRequestResponse.setHighlight(color)
     
-    def doProxyHighlight(self, key, color):
-        if key in self.contextMenuKeys:
-            baseRequestResponse = self.contextMenuKeys.get(key)
-            baseRequestResponse.setHighlight(color)
-            
     def createMenuItems(self, invocation):
 
         items = []
@@ -252,6 +247,8 @@ class BurpExtender(IBurpExtender, IHttpListener, IContextMenuFactory, ITab):
     def cleanURL(self, url):
 
         # GUID (Optional Dash), Hashes, Any purely numeric sequence
+
+        url = url.split("?")[0]
 
         regexs = [
             "{?\w{8}-?\w{4}-?\w{4}-?\w{4}-?\w{12}}?",
@@ -321,6 +318,7 @@ class HighlighterAddKeyedMenuItem(ActionListener):
         self.baseRequestResponse.setHighlight(color)
 
         history = self.extender._callbacks.getProxyHistory()
+
         for baseRequestResponse in history[self.extender.proxyLookBackLimit:]:
             keyProxyRequest = self.extender.calculateKey(baseRequestResponse)
             if self.key == keyProxyRequest:
