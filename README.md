@@ -18,8 +18,8 @@
 
 * Quickly identify requests you've previously triaged -- On to the next one!
 * Two modes of operation (Available in context menus after right-clicking a request in Proxy History)
-	* **Tag-Based higlight mode** - Select in Burp Tab _(Configure in extension settings tab)_
-	* **Explicit highlight mode** - Select a color from the dropdown menu
+	* **Tag-Based higlight mode** - Select tag from the extension context menu _(Configure tag color in extension settings tab)_
+	* **Explicit highlight mode** - Select a color from the extension context menu
 * Determines unique requests based off the HTTP Method, URL, and parameters
 	* Automatically normalizes URLs with route parameters such as IDs or GUIDs
 * Configure custom highlight colors for tag-based higlighting
